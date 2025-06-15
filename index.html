@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto/IDR Candlestick + AI Signal & Prediksi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2962FF;
+            --secondary-color: #0D47A1;
+            --accent-color: #00C853;
+            --danger-color: #FF3D00;
+            --warning-color: #FFAB00;
+            --dark-color: #121826;
+            --light-color: #F5F7FA;
+            --gray-color: #E0E0E0;
+            --text-dark: #212121;
+            --text-light: #FAFAFA;
+            --card-bg: #FFFFFF;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        body.dark-mode {
+            --primary-color: #448AFF;
+            --secondary-color: #1565C0;
+            --accent-color: #00E676;
+            --danger-color: #FF6E40;
+            --warning-color: #FFC400;
+            --dark-color: #F5F7FA;
+            --light-color: #121826;
+            --gray-color: #2D3748;
+            --text-dark: #FAFAFA;
+            --text-light: #212121;
+            --card-bg: #1E293B;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--light-color);
+            color: var(--text-dark);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--gray-color);
+        }
+        
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin: 0;
+        }
+        
+        .header-description {
+            font-size: 14px;
+            color: var(--text-dark);
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title i {
+            font-size: 20px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-1px);
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        select, input {
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid var(--gray-color);
+            background-color: var(--card-bg);
+            color: var(--text-dark);
+            font-size: 14px;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        #chart, #volume-chart {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        #chart {
+            height: 500px;
+        }
+        
+        #volume-chart {
+            height: 150px;
+            margin-top: 10px;
+        }
+        
+        .signal {
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .signal.buy {
+            background-color: rgba(0, 200, 83, 0.1);
+            color: var(--accent-color);
+            border-left: 4px solid var(--accent-color);
+        }
+        
+        .signal.sell {
+            background-color: rgba(255, 61, 0, 0.1);
+            color: var(--danger-color);
+            border-left: 4px solid var(--danger-color);
+        }
+        
+        .signal.wait {
+            background-color: rgba(255, 171, 0, 0.1);
+            color: var(--warning-color);
+            border-left: 4px solid var(--warning-color);
+        }
+        
+        .price-display {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 15px 0;
+        }
+        
+        .price-up {
+            color: var(--accent-color);
+        }
+        
+        .price-down {
+            color: var(--danger-color);
+        }
+        
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--gray-color);
+        }
+        
+        .prediction-item:last-child {
+            border-bottom: none;
+        }
+        
+        .prediction-label {
+            font-weight: 500;
+        }
+        
+        .prediction-value {
+            font-weight: 600;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 13px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(30px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .notification.success {
+            background-color: var(--accent-color);
+        }
+        
+        .notification.error {
+            background-color: var(--danger-color);
+        }
+        
+        .notification.warning {
+            background-color: var(--warning-color);
+        }
+        
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid var(--gray-color);
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .tab.active {
+            border-bottom: 2px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            #chart {
+                height: 350px;
+            }
+            
+            #volume-chart {
+                height: 120px;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Memuat data dan model AI...</p>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1 class="header-title">Crypto/IDR Analytics Dashboard</h1>
+                <p class="header-description">Visualisasi harga crypto terhadap Rupiah dengan prediksi AI dan sinyal trading</p>
+            </div>
+            <button onclick="toggleMode()" class="btn btn-outline">
+                <i class="fas fa-moon"></i> Mode Gelap
+            </button>
+        </header>
+        
+        <div class="tab-container">
+            <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+            <div class="tab" onclick="switchTab('portfolio')">Portofolio</div>
+            <div class="tab" onclick="switchTab('settings')">Pengaturan</div>
+        </div>
+        
+        <div id="dashboard-tab" class="tab-content active">
+            <div class="card">
+                <div class="btn-group">
+                    <div class="form-group">
+                        <label for="coin-select">Pilih Aset Crypto</label>
+                        <select id="coin-select">
+                            <option value="ripple">XRP</option>
+                            <option value="bitcoin">Bitcoin</option>
+                            <option value="tether">USDT</option>
+                            <option value="ethereum">Ethereum</option>
+                            <option value="solana">Solana</option>
+                            <option value="mantra">Mantra</option>
+                            <option value="cardano">Cardano</option>
+                        </select>
+                    </div>
+                    
+                    <button onclick="fetchHistoricalData()" class="btn">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                    
+                    <button onclick="exportChart()" class="btn btn-outline">
+                        <i class="fas fa-camera"></i> Ekspor Chart
+                    </button>
+                    
+                    <button onclick="toggleTechnicalIndicators()" class="btn btn-outline">
+                        <i class="fas fa-chart-line"></i> Indikator Teknikal
+                    </button>
+                </div>
+                
+                <div id="current-price" class="price-display">
+                    <i class="fas fa-coins"></i> Harga Saat Ini: Memuat...
+                </div>
+                
+                <div id="chart"></div>
+                <div id="volume-chart"></div>
+            </div>
+            
+            <div class="grid">
+                <div class="card">
+                    <h3 class="card-title"><i class="fas fa-bell"></i> Sinyal Trading</h3>
+                    <div id="signal" class="signal wait">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <div>Memuat sinyal...</div>
+                            <small>Terakhir diperbarui: -</small>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <h4>Keterangan Sinyal:</h4>
+                        <div class="prediction-item">
+                            <span class="prediction-label"><i class="fas fa-arrow-up" style="color: var(--accent-color);"></i> BELI</span>
+                            <span class="prediction-value">Harga berpotensi naik</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="prediction-label"><i class="fas fa-arrow-down" style="color: var(--danger-color);"></i> JUAL</span>
+                            <span class="prediction-value">Harga berpotensi turun</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="prediction-label"><i class="fas fa-pause" style="color: var(--warning-color);"></i> TUNGGU</span>
+                            <span class="prediction-value">Tren belum jelas</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title"><i class="fas fa-chart-bar"></i> Prediksi Harga</h3>
+                    <div id="prediction">
+                        <div class="prediction-item">
+                            <span class="prediction-label">15 Menit</span>
+                            <span class="prediction-value">Memuat...</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="prediction-label">1 Jam</span>
+                            <span class="prediction-value">Memuat...</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="prediction-label">4 Jam</span>
+                            <span class="prediction-value">Memuat...</span>
+                        </div>
+                        <div class="prediction-item">
+                            <span class="prediction-label">1 Hari</span>
+                            <span class="prediction-value">Memuat...</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <small>Prediksi berdasarkan analisis AI dan pergerakan harga historis</small>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title"><i class="fas fa-newspaper"></i> Analisis Sentimen</h3>
+                    <div id="sentiment-analysis">
+                        <div id="sentiment-content">Memuat analisis sentimen...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-history"></i> Histori Sinyal</h3>
+                <div id="history-log">
+                    <ul id="log-list" style="padding-left: 20px; margin: 0;"></ul>
+                </div>
+            </div>
+        </div>
+        
+        <div id="portfolio-tab" class="tab-content">
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-wallet"></i> Kelola Portofolio</h3>
+                
+                <div class="grid">
+                    <div>
+                        <div class="form-group">
+                            <label for="modal">Modal Awal (Rp)</label>
+                            <input type="number" id="modal" value="1000000">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="buyPrice">Harga Beli (Rp)</label>
+                            <input type="number" id="buyPrice" value="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="coinsHeld">Jumlah Koin</label>
+                            <input type="number" id="coinsHeld" value="0">
+                        </div>
+                        
+                        <button onclick="updatePortfolio()" class="btn">
+                            <i class="fas fa-calculator"></i> Hitung Portofolio
+                        </button>
+                    </div>
+                    
+                    <div>
+                        <h4>Hasil Perhitungan</h4>
+                        <div id="portfolioResult" style="padding: 15px; background-color: rgba(41, 98, 255, 0.05); border-radius: 8px;">
+                            Masukkan data portofolio untuk melihat hasil perhitungan
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-chart-pie"></i> Distribusi Portofolio</h3>
+                <div style="text-align: center; padding: 20px;">
+                    <canvas id="portfolioChart" width="400" height="400"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div id="settings-tab" class="tab-content">
+            <div class="card">
+                <h3 class="card-title"><i class="fas fa-cog"></i> Pengaturan Aplikasi</h3>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="multiCompareToggle"> Aktifkan Perbandingan Multi Coin
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label for="compare-coins">Pilih Koin untuk Dibandingkan</label>
+                    <select id="compare-coins" multiple size="4" style="width: 100%;">
+                        <option value="ripple">XRP</option>
+                        <option value="bitcoin">Bitcoin</option>
+                        <option value="tether">USDT</option>
+                        <option value="ethereum">Ethereum</option>
+                        <option value="solana">Solana</option>
+                        <option value="mantra">Mantra</option>
+                        <option value="cardano">Cardano</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="refreshInterval">Interval Refresh Data (detik)</label>
+                    <input type="number" id="refreshInterval" value="10" min="5">
+                </div>
+                
+                <button onclick="saveSettings()" class="btn">
+                    <i class="fas fa-save"></i> Simpan Pengaturan
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 class="card-title"><i class="fas fa-info-circle"></i> Legenda & Informasi</h3>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #26a69a;"></div>
+                    <span>Candlestick Hijau (Harga Naik)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ef5350;"></div>
+                    <span>Candlestick Merah (Harga Turun)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #2962FF;"></div>
+                    <span>Moving Average (20 periode)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF6D00;"></div>
+                    <span>RSI (Relative Strength Index)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #26a69a;"></div>
+                    <span>Volume Beli Dominan</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ef5350;"></div>
+                    <span>Volume Jual Dominan</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Kode JavaScript dari versi sebelumnya tetap sama
+        // Hanya perlu menyesuaikan beberapa fungsi untuk bekerja dengan desain baru
+        
+        // Fungsi untuk menampilkan notifikasi
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Fungsi untuk toggle mode gelap/terang
+        function toggleMode() {
+            document.body.classList.toggle('dark-mode');
+            const btn = document.querySelector('[onclick="toggleMode()"]');
+            if (document.body.classList.contains('dark-mode')) {
+                btn.innerHTML = '<i class="fas fa-sun"></i> Mode Terang';
+            } else {
+                btn.innerHTML = '<i class="fas fa-moon"></i> Mode Gelap';
+            }
+        }
+        
+        // Fungsi untuk switch tab
+        function switchTab(tabName) {
+            // Sembunyikan semua tab content
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Tampilkan tab yang dipilih
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Update tab navigation
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+        }
+        
+        // Fungsi untuk update signal display
+        function updateSignalDisplay(signal) {
+            const signalDiv = document.getElementById('signal');
+            signalDiv.className = `signal ${signal.toLowerCase()}`;
+            
+            if (signal === 'BELI') {
+                signalDiv.innerHTML = `
+                    <i class="fas fa-arrow-up"></i>
+                    <div>
+                        <div>Sinyal BELI</div>
+                        <small>Terakhir diperbarui: ${new Date().toLocaleString('id-ID')}</small>
+                    </div>
+                `;
+            } else if (signal === 'JUAL') {
+                signalDiv.innerHTML = `
+                    <i class="fas fa-arrow-down"></i>
+                    <div>
+                        <div>Sinyal JUAL</div>
+                        <small>Terakhir diperbarui: ${new Date().toLocaleString('id-ID')}</small>
+                    </div>
+                `;
+            } else {
+                signalDiv.innerHTML = `
+                    <i class="fas fa-pause"></i>
+                    <div>
+                        <div>Sinyal TUNGGU</div>
+                        <small>Terakhir diperbarui: ${new Date().toLocaleString('id-ID')}</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // Fungsi untuk update price display
+        function updatePriceDisplay(price, change) {
+            const priceDiv = document.getElementById('current-price');
+            if (change > 0) {
+                priceDiv.className = 'price-display price-up';
+                priceDiv.innerHTML = `
+                    <i class="fas fa-arrow-up"></i> Harga Saat Ini: Rp${price.toLocaleString('id-ID')} 
+                    <span style="font-size: 16px;">(+${change.toFixed(2)}%)</span>
+                `;
+            } else if (change < 0) {
+                priceDiv.className = 'price-display price-down';
+                priceDiv.innerHTML = `
+                    <i class="fas fa-arrow-down"></i> Harga Saat Ini: Rp${price.toLocaleString('id-ID')} 
+                    <span style="font-size: 16px;">(${change.toFixed(2)}%)</span>
+                `;
+            } else {
+                priceDiv.className = 'price-display';
+                priceDiv.innerHTML = `
+                    <i class="fas fa-equals"></i> Harga Saat Ini: Rp${price.toLocaleString('id-ID')}
+                `;
+            }
+        }
+        
+        // Deklarasi variabel global
+        let selectedCoin = 'ripple';
+        const coinSelect = document.getElementById('coin-select');
+        const logList = document.getElementById('log-list');
+        const multiCompareToggle = document.getElementById('multiCompareToggle');
+        const compareCoinsSelect = document.getElementById('compare-coins');
+        let model = null;
+        let wsConnection = null;
+        let technicalIndicatorsVisible = false;
+        let dataCache = {};
+        let lastFetchTime = 0;
+        const CACHE_EXPIRY = 5 * 60 * 1000; // 5 menit cache expiry
+
+        // Inisialisasi chart
+        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+            layout: { backgroundColor: '#121212', textColor: '#fff' },
+            grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+            timeScale: {
+                timeVisible: true,
+                secondsVisible: false,
+                timeFormatter: (time) => new Date(time * 1000).toLocaleString('id-ID')
+            },
+        });
+
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
+            wickUpColor: '#26a69a', wickDownColor: '#ef5350'
+        });
+
+        const volumeChart = LightweightCharts.createChart(document.getElementById('volume-chart'), {
+            layout: { backgroundColor: '#121212', textColor: '#fff' },
+            grid: { vertLines: { color: '#333' }, horzLines: { color: '#333' } },
+            timeScale: { timeVisible: true, secondsVisible: false }
+        });
+
+        const volumeSeries = volumeChart.addHistogramSeries({
+            color: '#26a69a', priceFormat: { type: 'volume' }, priceLineVisible: false, overlay: true
+        });
+
+        // Deklarasi series untuk indikator teknikal
+        let smaSeries = chart.addLineSeries({ color: '#2962FF', lineWidth: 1, title: 'SMA 20' });
+        let rsiSeries = chart.addLineSeries({ 
+            color: '#FF6D00', 
+            lineWidth: 1, 
+            title: 'RSI',
+            pane: 'pane1',
+            priceScaleId: 'rsi-scale',
+            priceLineVisible: false
+        });
+        let macdSeries = chart.addHistogramSeries({
+            color: '#26a69a',
+            lineWidth: 1,
+            title: 'MACD',
+            pane: 'pane2',
+            priceScaleId: 'macd-scale'
+        });
+        let macdSignalSeries = chart.addLineSeries({
+            color: '#FF6D00',
+            lineWidth: 1,
+            title: 'MACD Signal',
+            pane: 'pane2',
+            priceScaleId: 'macd-scale'
+        });
+
+        // Line series untuk koin pembanding
+        let compareLineSeries = {};
+
+        let baseData = [];
+        let compareData = {};
+
+        const compareColors = ['#FF9900', '#3399FF', '#FF33CC', '#33FF88', '#FF6666', '#6666FF', '#FFCC33'];
+
+        // Fungsi untuk menampilkan loading
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
+
+        // Fungsi untuk menyembunyikan loading
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Fungsi untuk menampilkan notifikasi
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+            notification.style.backgroundColor = type === 'error' ? '#f44336' : 
+                                              type === 'warning' ? '#ff9800' : '#4CAF50';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 5000);
+        }
+
+        // Fungsi debounce untuk optimasi performa
+        function debounce(func, wait, immediate) {
+            let timeout;
+            return function() {
+                const context = this, args = arguments;
+                const later = function() {
+                    timeout = null;
+                    if (!immediate) func.apply(context, args);
+                };
+                const callNow = immediate && !timeout;
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+                if (callNow) func.apply(context, args);
+            };
+        };
+
+        // Fungsi untuk mengambil data OHLC dengan caching
+        async function fetchCoinOHLC(coin) {
+            const now = Date.now();
+            const cacheKey = `ohlc-${coin}`;
+            
+            // Cek cache
+            if (dataCache[cacheKey] && (now - dataCache[cacheKey].timestamp < CACHE_EXPIRY)) {
+                return dataCache[cacheKey].data;
+            }
+            
+            try {
+                showLoading();
+                const res = await fetch(`https://api.coingecko.com/api/v3/coins/${coin}/ohlc?vs_currency=idr&days=30`);
+                const rawData = await res.json();
+                const processedData = rawData.map(([time, open, high, low, close]) => ({
+                    time: Math.floor(time / 1000), open, high, low, close
+                }));
+                
+                // Simpan ke cache
+                dataCache[cacheKey] = {
+                    data: processedData,
+                    timestamp: now
+                };
+                
+                return processedData;
+            } catch (error) {
+                console.error(`Error fetching OHLC data for ${coin}:`, error);
+                showNotification(`Gagal mengambil data untuk ${coin}`, 'error');
+                // Coba kembalikan data cache jika ada meskipun expired
+                if (dataCache[cacheKey]) return dataCache[cacheKey].data;
+                throw error;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Fungsi untuk menghitung indikator teknikal
+        function calculateTechnicalIndicators(data) {
+            // SMA 20
+            const smaPeriod = 20;
+            const smaData = [];
+            for (let i = smaPeriod - 1; i < data.length; i++) {
+                const sum = data.slice(i - smaPeriod + 1, i + 1).reduce((acc, val) => acc + val.close, 0);
+                smaData.push({ time: data[i].time, value: sum / smaPeriod });
+            }
+            
+            // RSI
+            const rsiPeriod = 14;
+            const rsiData = [];
+            let prevAvgGain = 0;
+            let prevAvgLoss = 0;
+            
+            for (let i = 1; i <= rsiPeriod; i++) {
+                const change = data[i].close - data[i-1].close;
+                if (change > 0) prevAvgGain += change;
+                else prevAvgLoss += Math.abs(change);
+            }
+            
+            prevAvgGain /= rsiPeriod;
+            prevAvgLoss /= rsiPeriod;
+            
+            for (let i = rsiPeriod + 1; i < data.length; i++) {
+                const change = data[i].close - data[i-1].close;
+                let avgGain = prevAvgGain;
+                let avgLoss = prevAvgLoss;
+                
+                if (change > 0) {
+                    avgGain = (prevAvgGain * (rsiPeriod - 1) + change) / rsiPeriod;
+                    avgLoss = (prevAvgLoss * (rsiPeriod - 1)) / rsiPeriod;
+                } else {
+                    avgGain = (prevAvgGain * (rsiPeriod - 1)) / rsiPeriod;
+                    avgLoss = (prevAvgLoss * (rsiPeriod - 1) + Math.abs(change)) / rsiPeriod;
+                }
+                
+                const rs = avgGain / avgLoss;
+                const rsi = 100 - (100 / (1 + rs));
+                
+                rsiData.push({ time: data[i].time, value: rsi });
+                prevAvgGain = avgGain;
+                prevAvgLoss = avgLoss;
+            }
+            
+            // MACD
+            const macdData = [];
+            const ema12 = calculateEMA(data, 12);
+            const ema26 = calculateEMA(data, 26);
+            const macdLine = [];
+            
+            for (let i = 0; i < ema26.length; i++) {
+                macdLine.push({ 
+                    time: ema26[i].time, 
+                    value: ema12[i].value - ema26[i].value 
+                });
+            }
+            
+            const signalLine = calculateEMA(macdLine, 9);
+            
+            for (let i = 0; i < signalLine.length; i++) {
+                macdData.push({
+                    time: signalLine[i].time,
+                    macd: macdLine[i + (macdLine.length - signalLine.length)].value,
+                    signal: signalLine[i].value,
+                    histogram: macdLine[i + (macdLine.length - signalLine.length)].value - signalLine[i].value
+                });
+            }
+            
+            return { smaData, rsiData, macdData };
+        }
+        
+        // Fungsi untuk menghitung EMA
+        function calculateEMA(data, period) {
+            const k = 2 / (period + 1);
+            const emaData = [];
+            let ema = data.slice(0, period).reduce((sum, item) => sum + item.close, 0) / period;
+            
+            emaData.push({ time: data[period-1].time, value: ema });
+            
+            for (let i = period; i < data.length; i++) {
+                ema = data[i].close * k + ema * (1 - k);
+                emaData.push({ time: data[i].time, value: ema });
+            }
+            
+            return emaData;
+        }
+
+        // Fungsi untuk toggle indikator teknikal
+        function toggleTechnicalIndicators() {
+            technicalIndicatorsVisible = !technicalIndicatorsVisible;
+            
+            if (technicalIndicatorsVisible && baseData.length > 0) {
+                const { smaData, rsiData, macdData } = calculateTechnicalIndicators(baseData);
+                
+                smaSeries.setData(smaData);
+                rsiSeries.setData(rsiData);
+                
+                const macdHistogramData = macdData.map(d => ({
+                    time: d.time,
+                    value: d.histogram,
+                    color: d.histogram > 0 ? '#26a69a' : '#ef5350'
+                }));
+                
+                const macdSignalData = macdData.map(d => ({
+                    time: d.time,
+                    value: d.signal
+                }));
+                
+                macdSeries.setData(macdHistogramData);
+                macdSignalSeries.setData(macdSignalData);
+                
+                showNotification('Indikator teknikal ditampilkan', 'info');
+            } else {
+                smaSeries.setData([]);
+                rsiSeries.setData([]);
+                macdSeries.setData([]);
+                macdSignalSeries.setData([]);
+                
+                showNotification('Indikator teknikal disembunyikan', 'info');
+            }
+        }
+
+        // Fungsi untuk mengambil data harga dari Indodax
+        async function fetchIndodaxPrice() {
+            const mapping = { ripple: 'xrpidr', bitcoin: 'btcidr', tether: 'usdtidr', ethereum: 'ethidr', solana: 'solidr', mantra: 'omidr', cardano: 'adaidr' };
+            try {
+                const pair = mapping[selectedCoin] || 'xrpidr';
+                const res = await fetch(`https://indodax.com/api/ticker/${pair}`);
+                const data = await res.json();
+                return parseFloat(data.ticker.last);
+            } catch (err) {
+                console.error("Gagal ambil harga Indodax:", err);
+                showNotification('Gagal mengambil harga dari Indodax', 'error');
+                return null;
+            }
+        }
+
+        // Fungsi untuk memuat model TensorFlow.js
+        async function loadModel() {
+            try {
+                showLoading();
+                // Model sederhana untuk prediksi harga crypto
+                model = tf.sequential();
+                model.add(tf.layers.dense({units: 32, activation: 'relu', inputShape: [10]}));
+                model.add(tf.layers.dense({units: 16, activation: 'relu'}));
+                model.add(tf.layers.dense({units: 1}));
+                
+                model.compile({optimizer: 'adam', loss: 'meanSquaredError'});
+                
+                showNotification('Model AI berhasil dimuat', 'info');
+            } catch (error) {
+                console.error('Gagal memuat model:', error);
+                showNotification('Gagal memuat model AI', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Fungsi untuk prediksi dengan model TensorFlow.js
+        async function predictWithModel(data) {
+            if (!model || data.length < 10) return null;
+            
+            try {
+                // Normalisasi data
+                const closes = data.slice(-20).map(d => d.close);
+                const min = Math.min(...closes);
+                const max = Math.max(...closes);
+                const normalized = closes.map(x => (x - min) / (max - min));
+                
+                // Siapkan data input
+                const input = tf.tensor2d([normalized.slice(-10)], [1, 10]);
+                const prediction = await model.predict(input).data();
+                
+                // Denormalisasi hasil prediksi
+                return prediction[0] * (max - min) + min;
+            } catch (error) {
+                console.error('Prediksi gagal:', error);
+                return null;
+            }
+        }
+
+        // Fungsi untuk mengambil data sentimen dari API berita
+        async function fetchSentimentAnalysis() {
+            try {
+                // Simulasi analisis sentimen (dalam implementasi nyata, gunakan API seperti NewsAPI)
+                const sentiments = ['Positif', 'Netral', 'Negatif'];
+                const randomSentiment = sentiments[Math.floor(Math.random() * sentiments.length)];
+                
+                document.getElementById('sentiment-content').innerHTML = `
+                    <p>Sentimen Terkini: <strong>${randomSentiment}</strong></p>
+                    <p>📌 Berita terbaru menunjukkan ${randomSentiment.toLowerCase()} terhadap ${selectedCoin.toUpperCase()}</p>
+                    <p>💬 Diskusi media sosial cenderung ${Math.random() > 0.5 ? 'optimis' : 'hati-hati'}</p>
+                `;
+            } catch (error) {
+                console.error('Gagal mengambil analisis sentimen:', error);
+                document.getElementById('sentiment-content').textContent = 'Gagal memuat analisis sentimen.';
+            }
+        }
+
+        // Fungsi untuk menghubungkan ke WebSocket Indodax
+        function connectWebSocket() {
+            if (wsConnection) wsConnection.close();
+            
+            const mapping = { ripple: 'xrpidr', bitcoin: 'btcidr', tether: 'usdtidr', ethereum: 'ethidr', solana: 'solidr', mantra: 'omidr', cardano: 'adaidr' };
+            const pair = mapping[selectedCoin] || 'xrpidr';
+            
+            try {
+                wsConnection = new WebSocket(`wss://socket.indodax.com/ws/${pair}`);
+                
+                wsConnection.onopen = () => {
+                    showNotification('Koneksi real-time aktif', 'info');
+                };
+                
+                wsConnection.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.ticker) {
+                        const price = parseFloat(data.ticker.last);
+                        updateRealTimePrice(price);
+                    }
+                };
+                
+                wsConnection.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    showNotification('Koneksi real-time error', 'error');
+                };
+                
+                wsConnection.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    // Coba reconnect setelah 5 detik
+                    setTimeout(connectWebSocket, 5000);
+                };
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+                showNotification('Gagal menghubungkan ke real-time data', 'error');
+            }
+        }
+
+        // Fungsi untuk update harga real-time
+        function updateRealTimePrice(price) {
+            if (baseData.length === 0) return;
+            
+            const lastCandle = baseData[baseData.length - 1];
+            const now = Math.floor(Date.now() / 1000);
+            const candleTime = lastCandle.time;
+            
+            // Jika masih dalam periode candle yang sama
+            if (now - candleTime < 900) { // 15 menit = 900 detik
+                lastCandle.close = price;
+                lastCandle.high = Math.max(lastCandle.high, price);
+                lastCandle.low = Math.min(lastCandle.low, price);
+                
+                candleSeries.update(lastCandle);
+                volumeSeries.update({
+                    time: lastCandle.time,
+                    value: lastCandle.volume,
+                    color: lastCandle.close > lastCandle.open ? '#26a69a' : '#ef5350'
+                });
+                
+                document.getElementById('current-price').textContent = `💰 Harga Saat Ini: Rp${price.toLocaleString('id-ID')}`;
+                
+                // Update indikator teknikal jika aktif
+                if (technicalIndicatorsVisible) {
+                    toggleTechnicalIndicators();
+                    toggleTechnicalIndicators();
+                }
+            } else {
+                // Periode baru, fetch data terbaru
+                fetchHistoricalData();
+            }
+        }
+
+        // Fungsi untuk mengambil data historis
+        const debouncedFetchHistoricalData = debounce(async function() {
+            try {
+                document.getElementById('signal').textContent = 'Memuat sinyal...';
+                document.getElementById('prediction').innerHTML = 'Memuat prediksi harga...';
+
+                // Data utama
+                const rawData = await fetchCoinOHLC(selectedCoin);
+                baseData = rawData.map(d => ({
+                    time: d.time, open: d.open, high: d.high, low: d.low, close: d.close,
+                    volume: Math.abs(d.close - d.open) * 500
+                }));
+                candleSeries.setData(baseData);
+                volumeSeries.setData(baseData.map(d => ({
+                    time: d.time, value: d.volume, color: d.close > d.open ? '#26a69a' : '#ef5350'
+                })));
+
+                // Hapus data pembanding lama
+                for (const key in compareLineSeries) {
+                    chart.removeSeries(compareLineSeries[key]);
+                }
+                compareLineSeries = {};
+                compareData = {};
+
+                // Jika multi compare aktif, ambil data pembanding dan tambahkan garis
+                if (multiCompareToggle.checked) {
+                    const coinsToCompare = Array.from(compareCoinsSelect.selectedOptions).map(opt => opt.value).filter(c => c !== selectedCoin);
+                    for (let i = 0; i < coinsToCompare.length; i++) {
+                        const coin = coinsToCompare[i];
+                        try {
+                            const data = await fetchCoinOHLC(coin);
+                            compareData[coin] = data;
+                            const lineSeries = chart.addLineSeries({
+                                color: compareColors[i % compareColors.length],
+                                lineWidth: 2,
+                                priceLineVisible: false,
+                            });
+                            // Map data ke format time, value untuk line chart (gunakan harga close)
+                            const lineData = data.map(d => ({ time: d.time, value: d.close }));
+                            lineSeries.setData(lineData);
+                            compareLineSeries[coin] = lineSeries;
+                        } catch(e) {
+                            console.warn(`Gagal ambil data pembanding untuk ${coin}`, e);
+                        }
+                    }
+                }
+
+                updateChart();
+                fetchSentimentAnalysis();
+
+            } catch (err) {
+                console.error("Gagal ambil data historis:", err);
+                showNotification('Gagal mengambil data historis', 'error');
+            }
+        }, 500);
+
+        // Assign fungsi yang sudah di-debounce
+        const fetchHistoricalData = debouncedFetchHistoricalData;
+
+        // Fungsi untuk menghasilkan sinyal trading
+        function generateSignal(data) {
+            if (data.length < 20) return 'TUNGGU';
+            
+            const last = data.slice(-20);
+            const closes = last.map(d => d.close);
+            const avg = closes.reduce((a, b) => a + b, 0) / closes.length;
+            const latest = closes[closes.length - 1];
+            
+            // Tambahkan faktor RSI jika indikator aktif
+            let rsiFactor = 0.5;
+            if (technicalIndicatorsVisible) {
+                const { rsiData } = calculateTechnicalIndicators(data);
+                if (rsiData.length > 0) {
+                    const lastRsi = rsiData[rsiData.length - 1].value;
+                    if (lastRsi < 30) rsiFactor = 0.8;  // Oversold, lebih mungkin beli
+                    else if (lastRsi > 70) rsiFactor = 0.2;  // Overbought, lebih mungkin jual
+                }
+            }
+            
+            // Gabungkan dengan prediksi model AI
+            const aiPrediction = predictWithModel(data);
+            const aiFactor = aiPrediction ? (aiPrediction > latest ? 0.7 : 0.3) : 0.5;
+            
+            // Gabungkan semua faktor
+            const combinedFactor = (rsiFactor * 0.4) + (aiFactor * 0.6);
+            
+            if (latest > avg * (1 + (0.01 * combinedFactor))) return 'JUAL';
+            else if (latest < avg * (1 - (0.01 * combinedFactor))) return 'BELI';
+            return 'TUNGGU';
+        }
+
+        // Fungsi untuk prediksi harga
+        async function getPricePredictions(data) {
+            const predictions = {
+                linear15m: linearRegressionPredict(data, 1),
+                linear1h: linearRegressionPredict(data, 4),
+                linear1d: linearRegressionPredict(data, 96),
+                ai15m: await predictWithModel(data)
+            };
+            
+            return predictions;
+        }
+
+        // Fungsi linear regression
+        function linearRegressionPredict(data, futureSteps = 1) {
+            const closes = data.map(d => d.close);
+            const n = closes.length;
+            if (n < 10) return null;
+            
+            const x = Array.from({ length: n }, (_, i) => i + 1);
+            const y = closes;
+            const xSum = x.reduce((a, b) => a + b, 0);
+            const ySum = y.reduce((a, b) => a + b, 0);
+            const xySum = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+            const x2Sum = x.reduce((sum, xi) => sum + xi * xi, 0);
+            const slope = (n * xySum - xSum * ySum) / (n * x2Sum - xSum * xSum);
+            const intercept = (ySum - slope * xSum) / n;
+            const nextX = n + futureSteps;
+            return slope * nextX + intercept;
+        }
+
+        // Fungsi utama untuk update chart
+        async function updateChart() {
+            if (baseData.length === 0) return;
+            
+            const indodaxPrice = await fetchIndodaxPrice();
+            if (!indodaxPrice) return;
+
+            document.getElementById('current-price').textContent = `💰 Harga Saat Ini: Rp${indodaxPrice.toLocaleString('id-ID')}`;
+
+            const latestCandle = { ...baseData[baseData.length - 1] };
+            latestCandle.close = indodaxPrice;
+            latestCandle.high = Math.max(latestCandle.high, indodaxPrice);
+            latestCandle.low = Math.min(latestCandle.low, indodaxPrice);
+            baseData[baseData.length - 1] = latestCandle;
+
+            candleSeries.setData(baseData);
+            volumeSeries.setData(baseData.map(d => ({
+                time: d.time, value: d.volume, color: d.close > d.open ? '#26a69a' : '#ef5350'
+            })));
+
+            // Update garis pembanding jika aktif
+            if (multiCompareToggle.checked) {
+                for (const coin in compareLineSeries) {
+                    if (!compareData[coin]) continue;
+                    const indodaxPriceComp = await fetchIndodaxPriceForCoin(coin);
+                    if (indodaxPriceComp) {
+                        let lastData = compareData[coin][compareData[coin].length - 1];
+                        if (lastData) {
+                            lastData = { ...lastData };
+                            lastData.close = indodaxPriceComp;
+                            lastData.high = Math.max(lastData.high, indodaxPriceComp);
+                            lastData.low = Math.min(lastData.low, indodaxPriceComp);
+                            compareData[coin][compareData[coin].length - 1] = lastData;
+                            const lineData = compareData[coin].map(d => ({ time: d.time, value: d.close }));
+                            compareLineSeries[coin].setData(lineData);
+                        }
+                    }
+                }
+            }
+
+            const signal = generateSignal(baseData);
+            const signalDiv = document.getElementById('signal');
+            signalDiv.textContent = `Sinyal AI: ${signal}`;
+            signalDiv.style.color = signal === 'BELI' ? 'lime' : signal === 'JUAL' ? 'red' : 'gray';
+
+            const predictions = await getPricePredictions(baseData);
+            const predictionDiv = document.getElementById('prediction');
+            
+            if (!predictions.linear15m || !predictions.linear1h || !predictions.linear1d) {
+                predictionDiv.innerHTML = '❗Tidak cukup data untuk prediksi.';
+            } else {
+                predictionDiv.innerHTML = `
+                    📈 Prediksi Harga:<br>
+                    15 menit ke depan: 
+                    Linear: Rp${predictions.linear15m.toFixed(0).toLocaleString('id-ID')} | 
+                    AI: ${predictions.ai15m ? 'Rp'+predictions.ai15m.toFixed(0).toLocaleString('id-ID') : 'N/A'}<br>
+                    1 jam ke depan: Rp${predictions.linear1h.toFixed(0).toLocaleString('id-ID')}<br>
+                    1 hari ke depan: Rp${predictions.linear1d.toFixed(0).toLocaleString('id-ID')}<br>
+                `;
+            }
+
+            const lastUpdate = new Date().toLocaleString('id-ID');
+            document.getElementById('last-update').textContent = `Update terakhir: ${lastUpdate}`;
+
+            logList.insertAdjacentHTML('beforeend', `<li>[${lastUpdate}] Sinyal: <b>${signal}</b> | Harga: Rp${indodaxPrice.toFixed(0)} | Prediksi AI 15m: ${predictions.ai15m ? 'Rp'+predictions.ai15m.toFixed(0) : 'N/A'}</li>`);
+            if (logList.children.length > 10) logList.removeChild(logList.firstChild);
+            
+            // Kirim notifikasi jika sinyal berubah
+            const lastSignal = logList.children[logList.children.length - 2]?.textContent?.match(/Sinyal: <b>([^<]+)</)?.[1];
+            if (lastSignal && lastSignal !== signal) {
+                showNotification(`Sinyal berubah menjadi: ${signal}`, signal === 'BELI' ? 'info' : 'warning');
+            }
+        }
+
+        // Fungsi untuk mengambil harga Indodax untuk coin pembanding
+        async function fetchIndodaxPriceForCoin(coin) {
+            const mapping = { ripple: 'xrpidr', bitcoin: 'btcidr', tether: 'usdtidr', ethereum: 'ethidr', solana: 'solidr', mantra: 'omidr', cardano: 'adaidr' };
+            try {
+                const pair = mapping[coin] || 'xrpidr';
+                const res = await fetch(`https://indodax.com/api/ticker/${pair}`);
+                const data = await res.json();
+                return parseFloat(data.ticker.last);
+            } catch (err) {
+                return null;
+            }
+        }
+
+        // Event listener untuk select coin
+        coinSelect.addEventListener('change', () => {
+            selectedCoin = coinSelect.value;
+            document.getElementById('buyPrice').value = '';
+            document.getElementById('coinsHeld').value = '';
+            fetchHistoricalData();
+            connectWebSocket();
+        });
+
+        // Event listener untuk multi compare toggle
+        multiCompareToggle.addEventListener('change', () => {
+            fetchHistoricalData();
+        });
+
+        // Event listener untuk select compare coins
+        compareCoinsSelect.addEventListener('change', () => {
+            if (multiCompareToggle.checked) fetchHistoricalData();
+        });
+
+        // Portofolio kalkulator
+        function updatePortfolio() {
+            const modal = Number(document.getElementById('modal').value);
+            const buyPrice = Number(document.getElementById('buyPrice').value);
+            const coinsHeld = Number(document.getElementById('coinsHeld').value);
+            const currentPrice = parseFloat(document.getElementById('current-price').textContent.replace(/[^\d]/g, '')) || 0;
+
+            if (!modal || !buyPrice || !coinsHeld || !currentPrice) {
+                document.getElementById('portfolioResult').textContent = 'Masukkan data yang valid.';
+                return;
+            }
+
+            const valueNow = currentPrice * coinsHeld;
+            const profitLoss = valueNow - (buyPrice * coinsHeld);
+            const profitPercent = (profitLoss / (buyPrice * coinsHeld)) * 100;
+
+            let advice = '';
+            if (profitPercent > 10) advice = '💰 Profit bagus! Pertimbangkan jual sebagian.';
+            else if (profitPercent < -10) advice = '⚠️ Rugi besar. Evaluasi strategi.';
+            else advice = '⏳ Tunggu kondisi lebih baik.';
+
+            document.getElementById('portfolioResult').innerHTML = `
+                Nilai sekarang: Rp${valueNow.toLocaleString('id-ID')}<br>
+                Profit / Rugi: Rp${profitLoss.toLocaleString('id-ID')} (${profitPercent.toFixed(2)}%)<br>
+                Saran: ${advice}
+            `;
+        }
+
+        // Mode terang / gelap
+        function toggleMode() {
+            document.body.classList.toggle('light-mode');
+        }
+
+        // Screenshot
+        async function exportChart() {
+            if (!window.html2canvas) {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                script.onload = () => takeScreenshot();
+                document.head.appendChild(script);
+            } else {
+                takeScreenshot();
+            }
+        }
+        function takeScreenshot() {
+            html2canvas(document.body).then(canvas => {
+                const a = document.createElement('a');
+                a.href = canvas.toDataURL('image/png');
+                a.download = `chart-${selectedCoin}-${Date.now()}.png`;
+                a.click();
+            });
+        }
+
+        // Inisialisasi
+        document.addEventListener('DOMContentLoaded', async () => {
+            showLoading();
+            await loadModel();
+            fetchHistoricalData();
+            connectWebSocket();
+            hideLoading();
+        });
+
+        // Refresh otomatis setiap 1 menit
+        setInterval(fetchHistoricalData, 30 * 1000);
+    </script>
+</body>
+</html>
